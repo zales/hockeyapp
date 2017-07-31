@@ -39,6 +39,10 @@ module HockeyApp
      respond "new_app"
     end
 
+    def create_new_app title, bundle_id, options = {}
+      respond "new_app"
+    end
+
 
 
 

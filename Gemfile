@@ -1,4 +1,5 @@
-source "http://rubygems.org"
-
-# Specify your gem's dependencies in hockeyapp.gemspec
+# frozen_string_literal: true
+source "https://rubygems.org"
 gemspec
+
+# gem "rails"

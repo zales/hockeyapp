@@ -7,38 +7,35 @@ module HockeyApp
     headers 'Accept' => 'application/json'
     format :json
 
-
-    def initialize (options = {})
+    def initialize(options = {})
       @options = Config.to_h.merge(options)
-      raise "No API Token Given" if (@options[:token].nil?)
+      raise 'No API Token Given' if @options[:token].nil?
       self.class.headers 'X-HockeyAppToken' => @options[:token]
       self.class.base_uri @options[:base_uri] if @options[:base_uri].present?
     end
-
 
     def get_apps
       self.class.get '/apps'
     end
 
-
-    def get_crashes app_id, options = {}
+    def get_crashes(app_id, options = {})
       self.class.get "/apps/#{app_id}/crashes", options
     end
 
-    def get_crash_groups app_id, options = {}
+    def get_crash_groups(app_id, options = {})
       self.class.get "/apps/#{app_id}/crash_reasons", options
     end
 
-    def get_crash_groups_for_version app_id, version_id, options = {}
+    def get_crash_groups_for_version(app_id, version_id, options = {})
       self.class.get "/apps/#{app_id}/app_versions/#{version_id}/crash_reasons", options
     end
 
-    def get_crashes_for_group app_id, group_id, options = {}
+    def get_crashes_for_group(app_id, group_id, options = {})
       self.class.get "/apps/#{app_id}/crash_reasons/#{group_id}", options
     end
 
     # this is damn not thread safe !
-    def get_crash_log app_id, crash_id, options = {}
+    def get_crash_log(app_id, crash_id, options = {})
       self.class.format :plain
       log = self.class.get "/apps/#{app_id}/crashes/#{crash_id}?format=log", options
       self.class.format :json
@@ -46,42 +43,39 @@ module HockeyApp
     end
 
     # this is damn not thread safe !
-    def get_crash_description app_id, crash_id, options = {}
+    def get_crash_description(app_id, crash_id, options = {})
       self.class.format :plain
       description = self.class.get "/apps/#{app_id}/crashes/#{crash_id}?format=text", options
       self.class.format :json
       description
     end
 
-    def get_versions app_id, options = {}
+    def get_versions(app_id, options = {})
       self.class.get "/apps/#{app_id}/app_versions", options
     end
 
-    def post_new_version(
-        app_id,
-            ipa,
-            dsym=nil,
-            notes="New version",
-            notes_type=Version::NOTES_TYPES_TO_SYM.invert[:textile],
-            notify=Version::NOTIFY_TO_BOOL.invert[:none],
-            status=Version::STATUS_TO_SYM.invert[:allow],
-            tags=''
-    )
+    def post_new_version(app_id,
+                         ipa,
+                         dsym = nil,
+                         notes = 'New version',
+                         notes_type = Version::NOTES_TYPES_TO_SYM.invert[:textile],
+                         notify = Version::NOTIFY_TO_BOOL.invert[:none],
+                         status = Version::STATUS_TO_SYM.invert[:allow],
+                         tags = '')
       params = {
-          :ipa => ipa ,
-          :dsym => dsym ,
-          :notes => notes,
-          :notes_type => notes_type,
-          :notify => notify,
-          :status => status,
-          :tags => tags
+        ipa: ipa,
+        dsym: dsym,
+        notes: notes,
+        notes_type: notes_type,
+        notify: notify,
+        status: status,
+        tags: tags
       }
-      params.reject!{|_,v|v.nil?}
-      self.class.post "/apps/#{app_id}/app_versions/upload", :body => params
+      params.reject! { |_, v| v.nil? }
+      self.class.post "/apps/#{app_id}/app_versions/upload", body: params
     end
 
-
-    def remove_app app_id
+    def remove_app(app_id)
       self.class.format :plain
       response = self.class.delete "/apps/#{app_id}"
       self.class.format :json
@@ -89,18 +83,55 @@ module HockeyApp
     end
 
     def post_new_app(file_ipa,
-        notes="New app",
-        notes_type=App::NOTES_TYPES_TO_SYM.invert[:textile],
-        notify=App::NOTIFY_TO_BOOL.invert[false],
-        status=App::STATUS_TO_SYM.invert[:allow])
+                     notes = 'New app',
+                     notes_type = App::NOTES_TYPES_TO_SYM.invert[:textile],
+                     notify = App::NOTIFY_TO_BOOL.invert[false],
+                     status = App::STATUS_TO_SYM.invert[:allow])
       params = {
-          :ipa => file_ipa,
-          :notes => notes,
-          :notes_type => notes_type,
-          :notify => notify,
-          :status => status
+        ipa: file_ipa,
+        notes: notes,
+        notes_type: notes_type,
+        notify: notify,
+        status: status
       }
-      self.class.post "/apps", :body => params
+      self.class.post '/apps', body: params
+    end
+
+    def create_new_app(title, bundle_id, options = {})
+      unless options[:icon].nil?
+        icon_path = options[:icon]
+        accepted_formats = ['.png', '.gif', '.jpeg']
+        unless accepted_formats.include? File.extname(icon_path)
+          raise "Image format with #{File.extname(icon_path)} extension not supported"
+        end
+        options[:icon] = File.open(icon_path, 'rb')
+      end
+      options[:title] = title
+      options[:bundle_identifier] = bundle_id
+      self.class.post '/apps/new', body: options
+    end
+
+    def remove_versions(app, options)
+      params = options.select { |key, _value| %i[strategy number keep storage].include? key }
+      self.class.post "/apps/#{app.public_identifier}/app_versions/delete", body: params
+    end
+
+    def list_users(app_id, options = {})
+      self.class.get "/apps/#{app_id}/app_users", options
+    end
+
+    def invite_user(app_id, options = {})
+      params = options.slice(:email, :first_name, :last_name, :message, :role, :tags)
+      self.class.post "/apps/#{app_id}/app_users", body: params
+    end
+
+    def update_user(app_id, user_id, options = {})
+      params = options.slice(:email, :first_name, :last_name, :message, :role, :tags)
+      self.class.put "/apps/#{app_id}/app_users/#{user_id}", body: params
+    end
+
+    def remove_user(app_id, user_id)
+      self.class.delete "/apps/#{app_id}/app_users/#{user_id}"
     end
   end
 end

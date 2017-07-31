@@ -3,6 +3,7 @@ module HockeyApp
     def to_model
       self
     end
+
     def persisted?
       true
     end

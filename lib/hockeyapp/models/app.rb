@@ -5,48 +5,45 @@ module HockeyApp
     include ActiveModel::Validations
     include ActiveModelCompliance
 
-    ANDROID = 'Android'
-    IOS = 'iOS'
+    ANDROID = 'Android'.freeze
+    IOS = 'iOS'.freeze
 
-    ATTRIBUTES = [:title, :minimum_os_version, :status, :company, :owner, :bundle_identifier, :device_family, :platform,
-        :public_identifier, :role, :release_type]
+    ATTRIBUTES = %i[title minimum_os_version status company owner bundle_identifier device_family platform
+                    public_identifier role release_type].freeze
 
-    POST_PAYLOAD = [:status,:notes_type, :notify]
+    POST_PAYLOAD = %i[status notes_type notify].freeze
 
     NOTES_TYPES_TO_SYM = {
-        0 => :textile,
-        1 => :markdown
-    }
-
+      0 => :textile,
+      1 => :markdown
+    }.freeze
 
     NOTIFY_TO_BOOL = {
-        0 => false,
-        1 => true
-    }
+      0 => false,
+      1 => true
+    }.freeze
 
     STATUS_TO_SYM = {
-        1 => :deny,
-        2 => :allow
-    }
+      1 => :deny,
+      2 => :allow
+    }.freeze
 
     attr_accessor *ATTRIBUTES
     attr_accessor *POST_PAYLOAD
 
-
-    validates :notes_type, :inclusion => { :in =>NOTES_TYPES_TO_SYM.keys }
-    validates :notify, :inclusion => { :in => NOTIFY_TO_BOOL.keys }
-    validates :status, :inclusion => { :in => STATUS_TO_SYM.keys }
-
+    validates :notes_type, inclusion: { in: NOTES_TYPES_TO_SYM.keys }
+    validates :notify, inclusion: { in: NOTIFY_TO_BOOL.keys }
+    validates :status, inclusion: { in: STATUS_TO_SYM.keys }
 
     def self.from_hash(h, client)
-      res = self.new client
+      res = new client
       ATTRIBUTES.each do |attribute|
-        res.send("#{attribute.to_s}=", h[attribute.to_s]) unless (h[attribute.to_s].nil?)
+        res.send("#{attribute}=", h[attribute.to_s]) unless h[attribute.to_s].nil?
       end
       res
     end
 
-    def initialize client
+    def initialize(client)
       @client = client
     end
 
@@ -54,9 +51,7 @@ module HockeyApp
       [public_identifier] if persisted?
     end
 
-    def platform= platform
-      @platform = platform
-    end
+    attr_writer :platform
 
     def crashes
       @crashes ||= client.get_crashes(self)
@@ -71,7 +66,7 @@ module HockeyApp
     end
 
     def last_version
-      sorted_version = versions.sort_by { |v| v.version.to_i}
+      sorted_version = versions.sort_by { |v| v.version.to_i }
       sorted_version.last
     end
 
@@ -91,7 +86,7 @@ module HockeyApp
       url_strategy.install_url
     end
 
-    def create_version file, release_notes = "", notify = :none, status = :allow , tags = ""
+    def create_version(file, release_notes = '', notify = :none, status = :allow, tags = '')
       version = Version.new(self, @client)
       version.ipa = file
       version.notes = release_notes
@@ -106,8 +101,6 @@ module HockeyApp
       client.remove_app self
     end
 
-
-
     private
 
     attr_reader :client
@@ -116,6 +109,5 @@ module HockeyApp
       return HockeyApp::IOSAppUrls.new(self) if platform == IOS
       return HockeyApp::AndroidAppUrls.new(self) if platform == ANDROID
     end
-
   end
 end
